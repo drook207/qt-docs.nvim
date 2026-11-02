@@ -1,5 +1,5 @@
--- Headless-Tests:  nvim --headless -u NONE -l tests/run.lua
--- Optional mit echter Qt-Doku: QT_DOCS_TEST=/usr/share/qt6/doc nvim --headless -u NONE -l tests/run.lua
+-- Headless tests:  nvim --headless -u NONE -l tests/run.lua
+-- Optionally with real Qt docs: QT_DOCS_TEST=/usr/share/qt6/doc nvim --headless -u NONE -l tests/run.lua
 local root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:h")
 vim.opt.rtp:prepend(root)
 vim.o.hidden = true
@@ -15,13 +15,13 @@ end
 
 function T.eq(a, b, msg)
   if not vim.deep_equal(a, b) then
-    error((msg or "ungleich") .. "\nerwartet: " .. vim.inspect(b) .. "\nerhalten: " .. vim.inspect(a), 2)
+    error((msg or "not equal") .. "\nexpected: " .. vim.inspect(b) .. "\ngot: " .. vim.inspect(a), 2)
   end
 end
 
 function T.ok(v, msg)
   if not v then
-    error(msg or "Bedingung nicht erfüllt", 2)
+    error(msg or "condition not met", 2)
   end
 end
 
@@ -33,7 +33,7 @@ function T.buf_text(buf)
   return table.concat(vim.api.nvim_buf_get_lines(buf or 0, 0, -1, false), "\n")
 end
 
---- Fixture-Doku (eine .qch + ein HTML-Modul mit .index) bauen
+--- Build fixture docs (one .qch + one HTML module with .index)
 function T.fixture()
   local dir = vim.fn.tempname()
   local res = vim.system({ "python3", "-I", root .. "/tests/fixtures/build_qch.py", dir }, { text = true }):wait()
@@ -68,5 +68,5 @@ for _, c in ipairs(cases) do
     end
   end
 end
-print(("%d Tests, %d Fehler"):format(count, failures))
+print(("%d tests, %d failures"):format(count, failures))
 os.exit(failures == 0 and 0 or 1)

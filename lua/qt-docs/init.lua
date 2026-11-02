@@ -9,7 +9,7 @@ local function notify(msg, level)
   vim.notify("qt-docs: " .. msg, level or vim.log.levels.INFO)
 end
 
---- Online-Ziel raten, wenn keine lokale Doku vorhanden ist: QString::arg → qstring.html#arg
+--- Guess the online target when no local docs exist: QString::arg → qstring.html#arg
 local function online_guess(keyword)
   local cls, member = keyword:match("^([%w_:]-)::([%w_~]+)$")
   if not cls then
@@ -19,13 +19,13 @@ local function online_guess(keyword)
   return page, member
 end
 
---- Treffer auswählen und öffnen
+--- Select and open a match
 local function choose(entries, cb, prompt)
   if #entries == 1 then
     cb(entries[1])
     return
   end
-  -- gleiche Seite+Name mehrfach (Überladungen): erste nehmen, wenn alle gleich heißen
+  -- Same page+name repeated (overloads): take the first if they all have the same name
   local same = true
   for _, e in ipairs(entries) do
     if e.name ~= entries[1].name or e.vpath ~= entries[1].vpath then
@@ -37,7 +37,7 @@ local function choose(entries, cb, prompt)
     return
   end
   vim.ui.select(entries, {
-    prompt = prompt or "Qt-Doku",
+    prompt = prompt or "Qt docs",
     format_item = function(e)
       return e.name .. "  (" .. vim.fs.basename(e.vpath) .. ")"
     end,
@@ -48,7 +48,7 @@ local function choose(entries, cb, prompt)
   end)
 end
 
---- Stichwörter nacheinander probieren
+--- Try keywords one after another
 ---@param keywords string[]
 ---@param cb fun(entries: table[]|nil, data: table|nil, keyword: string|nil)
 function M.resolve(keywords, cb)
@@ -66,7 +66,7 @@ function M.resolve(keywords, cb)
   end)
 end
 
---- Doku öffnen. keyword: String oder nil (Symbol unter dem Cursor)
+--- Open docs. keyword: string or nil (symbol under the cursor)
 function M.open(keyword, opts)
   local keywords
   if keyword and keyword ~= "" then
@@ -75,7 +75,7 @@ function M.open(keyword, opts)
     keywords = symbol.candidates()
   end
   if #keywords == 0 then
-    notify("kein Stichwort")
+    notify("no keyword")
     return
   end
   M.resolve(keywords, function(entries, data, k)
@@ -86,16 +86,16 @@ function M.open(keyword, opts)
       return
     end
     if data and not config.options.online.enabled then
-      notify("nichts gefunden für " .. table.concat(keywords, ", "), vim.log.levels.WARN)
+      notify("nothing found for " .. table.concat(keywords, ", "), vim.log.levels.WARN)
       return
     end
     if not config.options.online.enabled then
-      notify("keine lokale Doku und Online-Doku deaktiviert", vim.log.levels.WARN)
+      notify("no local docs and online docs disabled", vim.log.levels.WARN)
       return
     end
     if data then
-      -- lokale Doku vorhanden, aber Stichwort unbekannt: nicht raten
-      notify("nichts gefunden für " .. table.concat(keywords, ", ") .. " – :QtDocSearch zum Suchen",
+      -- local docs available, but keyword unknown: do not guess
+      notify("nothing found for " .. table.concat(keywords, ", ") .. " – :QtDocSearch to search",
         vim.log.levels.WARN)
       return
     end
@@ -104,8 +104,8 @@ function M.open(keyword, opts)
   end)
 end
 
---- Nur den Abschnitt im Float (wie LSP-Hover). Gibt false zurück, wenn nichts gefunden.
----@param fallback fun()|nil wird aufgerufen, wenn das Symbol nicht in der Doku steht
+--- Only the section in the float (like LSP hover). Returns false if nothing is found.
+---@param fallback fun()|nil called when the symbol is not in the docs
 function M.hover(fallback)
   local keywords = symbol.candidates()
   if #keywords == 0 then
@@ -119,14 +119,14 @@ function M.hover(fallback)
       if fallback then
         fallback()
       else
-        notify("nichts gefunden für " .. table.concat(keywords, ", "))
+        notify("nothing found for " .. table.concat(keywords, ", "))
       end
       return
     end
     local e = entries[1]
     viewer.load(data, e.vpath, function(page, err)
       if not page then
-        notify(err or "Laden fehlgeschlagen", vim.log.levels.WARN)
+        notify(err or "failed to load", vim.log.levels.WARN)
         return
       end
       local lines = viewer.section(page, e.anchor, e.name)
@@ -136,7 +136,7 @@ function M.hover(fallback)
           more[#more + 1] = entries[i].name
         end
         lines[#lines + 1] = ""
-        lines[#lines + 1] = "_Weitere Treffer: " .. table.concat(more, ", ") .. "_"
+        lines[#lines + 1] = "_More matches: " .. table.concat(more, ", ") .. "_"
       end
       local h = config.options.hover
       vim.lsp.util.open_floating_preview(lines, "markdown", {
@@ -150,7 +150,7 @@ function M.hover(fallback)
   end)
 end
 
---- K-Ersatz: Qt-Doku, sonst LSP-Hover
+--- K replacement: Qt docs, otherwise LSP hover
 function M.k()
   M.hover(function()
     vim.lsp.buf.hover()
@@ -162,24 +162,24 @@ local function is_default_select()
   return info and info.source and info.source:find("vim/ui.lua", 1, true) ~= nil
 end
 
---- Suche/Picker über alle Stichwörter
+--- Search/picker over all keywords
 function M.search(prefix)
   index.get(function(data, err)
     if not data then
-      notify(err or "kein Index", vim.log.levels.WARN)
+      notify(err or "no index", vim.log.levels.WARN)
       return
     end
     local limit = is_default_select() and 300 or nil
     local items = index.complete(data, prefix, limit)
     if #items == 0 then
-      notify("nichts gefunden für " .. (prefix or ""))
+      notify("nothing found for " .. (prefix or ""))
       return
     end
     if limit and #items == limit then
-      notify(("nur die ersten %d Treffer – Präfix angeben (:QtDocSearch QStr) oder einen Picker wie "
-        .. "telescope/fzf-lua/snacks für vim.ui.select einrichten"):format(limit))
+      notify(("only the first %d matches – specify a prefix (:QtDocSearch QStr) or set up a picker such as "
+        .. "telescope/fzf-lua/snacks for vim.ui.select"):format(limit))
     end
-    vim.ui.select(items, { prompt = "Qt-Doku" }, function(choice)
+    vim.ui.select(items, { prompt = "Qt docs" }, function(choice)
       if choice then
         M.open(choice)
       end
@@ -187,7 +187,7 @@ function M.search(prefix)
   end)
 end
 
---- Im Browser öffnen
+--- Open in the browser
 function M.browser(keyword)
   local keywords = (keyword and keyword ~= "") and { keyword } or symbol.candidates()
   M.resolve(keywords, function(entries, _, k)
@@ -202,20 +202,20 @@ function M.browser(keyword)
   end)
 end
 
---- Index neu bauen
+--- Rebuild the index
 function M.reindex()
   index.reset()
   viewer.clear_cache()
   index.get(function(data, err)
     if data then
-      notify(("Index: %d Stichwörter aus %d Quellen"):format(#data.entries, #data.sources))
+      notify(("Index: %d keywords from %d sources"):format(#data.entries, #data.sources))
     else
-      notify(err or "Fehler", vim.log.levels.ERROR)
+      notify(err or "error", vim.log.levels.ERROR)
     end
   end, { force = true })
 end
 
---- Vervollständigung für :QtDoc
+--- Completion for :QtDoc
 function M.complete(arglead)
   local data = index.loaded()
   if not data then
@@ -232,7 +232,7 @@ function M.setup(opts)
       group = group,
       pattern = { "cpp", "c", "objcpp", "qml", "qmljs" },
       callback = function(ev)
-        vim.keymap.set("n", "K", M.k, { buffer = ev.buf, desc = "Qt-Doku / LSP-Hover" })
+        vim.keymap.set("n", "K", M.k, { buffer = ev.buf, desc = "Qt docs / LSP hover" })
       end,
     })
   end

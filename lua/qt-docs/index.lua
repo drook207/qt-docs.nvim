@@ -1,5 +1,5 @@
--- Stichwort-Index: wird per Python aus den .qch/.index-Dateien gebaut und als
--- JSON im Cache abgelegt (neu gebaut, sobald sich eine Doku-Datei ändert).
+-- Keyword index: built by Python from the .qch/.index files and stored as
+-- JSON in the cache (rebuilt as soon as a docs file changes).
 local config = require("qt-docs.config")
 local discover = require("qt-docs.discover")
 
@@ -17,7 +17,7 @@ local state = {
   waiting = {},
 }
 
---- Signatur der Doku-Dateien (Pfad + mtime + Größe)
+--- Signature of the docs files (path + mtime + size)
 local function fingerprint(paths)
   local parts = { "v1" }
   for _, p in ipairs(paths) do
@@ -56,10 +56,10 @@ local function prepare(data)
     table.insert(data.by_lower[lk], i)
   end
   for _, f in ipairs(data.files) do
-    -- [vpath, source_index (0-basiert), title]
+    -- [vpath, source_index (0-based), title]
     data.file_info[f[1]] = { source = data.sources[f[2] + 1], title = f[3] }
   end
-  -- Dateiname → vpath (für Links zwischen Modulen, Online-Fallback)
+  -- Filename → vpath (for links between modules, online fallback)
   data.by_basename = {}
   for vpath in pairs(data.file_info) do
     local base = vim.fs.basename(vpath)
@@ -83,7 +83,7 @@ local function finish(data, err)
   state.building = false
   state.empty = false
   if data and #(data.sources or {}) == 0 then
-    data, err = nil, "keine lokale Qt-Dokumentation gefunden"
+    data, err = nil, "no local Qt documentation found"
     state.empty = true
   end
   state.data = data and prepare(data) or nil
@@ -94,13 +94,13 @@ local function finish(data, err)
   end
 end
 
---- Index holen (lädt Cache oder baut neu). cb(data|nil, err)
+--- Get the index (loads the cache or rebuilds it). cb(data|nil, err)
 ---@param opts table|nil { force = bool, sync = bool }
 function M.get(cb, opts)
   opts = opts or {}
   local paths, why = discover.paths()
   if #paths == 0 then
-    cb(nil, "keine lokale Qt-Dokumentation gefunden")
+    cb(nil, "no local Qt documentation found")
     return
   end
   local key = fingerprint(paths)
@@ -109,7 +109,7 @@ function M.get(cb, opts)
       cb(state.data)
       return
     elseif state.empty then
-      cb(nil, "keine lokale Qt-Dokumentation gefunden")
+      cb(nil, "no local Qt documentation found")
       return
     end
   end
@@ -121,12 +121,12 @@ function M.get(cb, opts)
   local dir = config.cache_dir()
   local ok_dir = pcall(vim.fn.mkdir, dir, "p")
   if not ok_dir or vim.fn.filewritable(dir) ~= 2 then
-    -- Cache nicht beschreibbar: temporäres Verzeichnis verwenden
+    -- Cache not writable: use a temporary directory
     dir = vim.fs.joinpath(vim.fn.fnamemodify(vim.fn.tempname(), ":h"), "qt-docs")
     pcall(vim.fn.mkdir, dir, "p")
     if not M._warned_cache then
       M._warned_cache = true
-      vim.notify("qt-docs: Cache-Verzeichnis nicht beschreibbar, verwende " .. dir, vim.log.levels.WARN)
+      vim.notify("qt-docs: cache directory not writable, using " .. dir, vim.log.levels.WARN)
     end
   end
   local file = vim.fs.joinpath(dir, "index-" .. key .. ".json")
@@ -141,15 +141,15 @@ function M.get(cb, opts)
   local cmd = { config.python(), M.helper, "index", file }
   vim.list_extend(cmd, paths)
   if not opts.sync then
-    vim.notify("qt-docs: Index wird erstellt (" .. table.concat(paths, ", ") .. ", " .. (why or "") .. ") …")
+    vim.notify("qt-docs: building index (" .. table.concat(paths, ", ") .. ", " .. (why or "") .. ") …")
   end
   local function done(res)
     if res.code ~= 0 then
-      finish(nil, "Index-Erstellung fehlgeschlagen: " .. (res.stderr or ""))
+      finish(nil, "index build failed: " .. (res.stderr or ""))
       return
     end
     local data = read_json(file)
-    -- alte Indizes aufräumen
+    -- clean up old indexes
     for _, f in ipairs(vim.fn.glob(vim.fs.joinpath(dir, "index-*.json"), true, true)) do
       if f ~= file then
         os.remove(f)
@@ -158,12 +158,12 @@ function M.get(cb, opts)
     if data then
       finish(data)
     else
-      finish(nil, "Index unlesbar")
+      finish(nil, "index unreadable")
     end
   end
   local ok, proc = pcall(vim.system, cmd, { text = true }, (not opts.sync) and vim.schedule_wrap(done) or nil)
   if not ok then
-    finish(nil, "Python nicht startbar (" .. config.python() .. "): " .. tostring(proc))
+    finish(nil, "Python cannot be started (" .. config.python() .. "): " .. tostring(proc))
     return
   end
   if opts.sync then
@@ -171,7 +171,7 @@ function M.get(cb, opts)
   end
 end
 
---- Synchron (blockierend) – für Tests und :checkhealth
+--- Synchronous (blocking) – for tests and :checkhealth
 function M.get_sync(force)
   local result, err
   M.get(function(d, e)
@@ -189,7 +189,7 @@ function M.reset()
 end
 
 -- ---------------------------------------------------------------------------
--- Suche
+-- Search
 -- ---------------------------------------------------------------------------
 
 local function collect(data, idxs, out, seen)
@@ -203,7 +203,7 @@ local function collect(data, idxs, out, seen)
   end
 end
 
---- Member über die Basisklassen suchen (QPushButton::setText → QAbstractButton::setText)
+--- Look up members via the base classes (QPushButton::setText → QAbstractButton::setText)
 local function via_bases(data, cls, member, out, seen, depth)
   if depth > 12 or not data.bases then
     return
@@ -229,7 +229,7 @@ local function strip_templates(s)
   return s
 end
 
---- Einträge zu einem Stichwort (beste Treffer zuerst)
+--- Entries for a keyword (best matches first)
 ---@return table[] {name, vpath, anchor}
 function M.lookup(data, keyword)
   keyword = vim.trim(strip_templates(vim.trim(keyword or "")):gsub("%(.*$", ""):gsub("^::", ""))
@@ -243,7 +243,7 @@ function M.lookup(data, keyword)
   end
   local cls, member = keyword:match("^(.*)::([^:]+)$")
   if #out == 0 and cls then
-    -- Konstruktor/Destruktor: QWidget::QWidget → Klassenseite, Anker "QWidget"
+    -- Constructor/destructor: QWidget::QWidget → class page, anchor "QWidget"
     local short = cls:match("([^:]+)$")
     if member == short or member == "~" .. short then
       for _, e in ipairs(M.lookup(data, cls)) do
@@ -257,12 +257,12 @@ function M.lookup(data, keyword)
     via_bases(data, cls, member, out, seen, 0)
   end
   if #out == 0 and cls and cls:find("::", 1, true) then
-    -- Enum-Name im Pfad: Qt::AlignmentFlag::AlignLeft → Qt::AlignLeft
+    -- Enum name in the path: Qt::AlignmentFlag::AlignLeft → Qt::AlignLeft
     local outer = cls:match("^(.*)::[^:]+$")
     collect(data, data.by_key[outer .. "::" .. member], out, seen)
   end
   if #out == 0 and keyword:find("::", 1, true) then
-    -- Namespace-Präfixe weglassen: std::QString → QString, Qt::AlignLeft bleibt
+    -- Drop namespace prefixes: std::QString → QString, Qt::AlignLeft stays
     local parts = vim.split(keyword, "::", { plain = true })
     for i = 2, #parts - 1 do
       local k = table.concat(parts, "::", i)
@@ -270,7 +270,7 @@ function M.lookup(data, keyword)
     end
   end
   if #out == 0 and not keyword:find("::", 1, true) then
-    -- Member beliebiger Klassen: "arg" → QString::arg, …
+    -- Members of any class: "arg" → QString::arg, …
     local suffix = "::" .. keyword
     for k, idxs in pairs(data.by_key) do
       if #k > #suffix and k:sub(-#suffix) == suffix then
@@ -282,7 +282,7 @@ function M.lookup(data, keyword)
     end)
   end
   if #out == 0 and cls and data.by_key[cls] then
-    -- Member unbekannt: wenigstens die Klassenseite
+    -- Unknown member: at least the class page
     collect(data, data.by_key[cls], out, seen)
     for _, e in ipairs(out) do
       e.partial = true
@@ -291,7 +291,7 @@ function M.lookup(data, keyword)
   return out
 end
 
---- Alle Stichwörter mit Präfix (für Vervollständigung/Picker)
+--- All keywords with a prefix (for completion/picker)
 function M.complete(data, prefix, limit)
   prefix = (prefix or ""):lower()
   local res = {}

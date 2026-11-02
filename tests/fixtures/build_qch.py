@@ -1,4 +1,4 @@
-"""Baut tests/fixtures/out/qtdemo.qch aus html/qtdemo und html/qtother/ als HTML-Modul mit .index."""
+"""Build tests/fixtures/out/qtdemo.qch from html/qtdemo and html/qtother/ as an HTML module with .index."""
 import os, shutil, sqlite3, struct, sys, zlib
 here = os.path.dirname(os.path.abspath(__file__))
 out = sys.argv[1]
@@ -25,7 +25,7 @@ for i, (name, ident, anchor) in enumerate([("QDemo", "QDemo", None), ("name", "Q
                                             ("setName", "QDemo::setName", "setName"), ("A", "QDemo::A", "Enum-enum")]):
     c.execute("INSERT INTO IndexTable VALUES (?, ?, ?, 1, 1, ?)", (i + 1, name, ident, anchor))
 c.commit(); c.close()
-# HTML-Modul ohne .qch
+# HTML module without .qch
 dst = os.path.join(out, "qtother")
 shutil.rmtree(dst, ignore_errors=True)
 shutil.copytree(os.path.join(here, "html/qtother"), dst)

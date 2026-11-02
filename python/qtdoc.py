@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Helfer für qt-docs.nvim (nur Standardbibliothek).
+"""Helper for qt-docs.nvim (standard library only).
 
-Befehle:
-  index <out.json> <pfad>...        Stichwort-Index aus .qch-Dateien und
-                                     HTML-Doku-Verzeichnissen (*.index) bauen
-  render qch <datei.qch> <vpfad>    Seite aus einer .qch rendern
-  render file <pfad.html> <vpfad>   Seite aus einer HTML-Datei rendern
-  render stdin <vpfad>              HTML von stdin rendern (Online-Doku)
+Commands:
+  index <out.json> <path>...        Build keyword index from .qch files and
+                                     HTML doc directories (*.index)
+  render qch <file.qch> <vpath>     Render page from a .qch
+  render file <path.html> <vpath>   Render page from an HTML file
+  render stdin <vpath>              Render HTML from stdin (online docs)
 
-Ausgabe von render: JSON {title, lines, anchors, vpath}
+Output of render: JSON {title, lines, anchors, vpath}
 """
 import json
 import os
@@ -41,7 +41,7 @@ def index_qch(path, src_id, entries, files, bases):
             vpath = posixpath.join(folders.get(folder_id, ""), name)
             fmap[file_id] = vpath
             files.append([vpath, src_id, title or ""])
-        # Basisklassen aus den Klassenseiten ("Inherits:"-Zeile)
+        # Base classes from the class pages ("Inherits:" line)
         for file_id, title in con.execute("SELECT FileId, Title FROM FileNameTable"):
             m = re.match(r"^([\w:]+) (Class|Struct)\b", title or "")
             if not m:
@@ -76,7 +76,7 @@ def index_qch(path, src_id, entries, files, bases):
 
 
 def index_xml(index_file, docroot, src_id, entries, files, bases):
-    """qdoc-*.index (aus HTML-Doku-Paketen) einlesen."""
+    """Read a qdoc-*.index (from HTML doc packages)."""
     folder = posixpath.relpath(os.path.dirname(index_file), docroot).replace(os.sep, "/")
     if folder == ".":
         folder = ""
@@ -107,7 +107,7 @@ def index_xml(index_file, docroot, src_id, entries, files, bases):
                     if vpath not in seen_files:
                         seen_files.add(vpath)
                         files.append([vpath, src_id, child.get("fulltitle") or child.get("title") or ""])
-                    # Enum-Werte (wie in .qch: im Gültigkeitsbereich der Enum)
+                    # Enum values (as in .qch: in the scope of the enum)
                     if child.tag == "enum":
                         for val in child.findall("value"):
                             vname = val.get("name")
@@ -127,7 +127,7 @@ def index_xml(index_file, docroot, src_id, entries, files, bases):
 
 
 def find_sources(paths):
-    """Liefert [(art, pfad, docroot)] – .qch bevorzugt, sonst *.index-Dateien."""
+    """Return [(kind, path, docroot)] – .qch preferred, otherwise *.index files."""
     result = []
     for p in paths:
         if os.path.isfile(p) and p.endswith(".qch"):
@@ -140,7 +140,7 @@ def find_sources(paths):
         for f in qchs:
             result.append(("qch", os.path.join(p, f), None))
             qch_modules.add(f[:-4])
-        # HTML-Module ohne .qch
+        # HTML modules without .qch
         for d in sorted(os.listdir(p)):
             sub = os.path.join(p, d)
             if not os.path.isdir(sub) or d in qch_modules:
@@ -161,7 +161,7 @@ def cmd_index(out, paths):
                 src = index_xml(path, docroot, len(sources), entries, files, bases)
                 if src:
                     src["index"] = path
-        except Exception as e:  # defekte Datei überspringen
+        except Exception as e:  # skip broken file
             sys.stderr.write("%s: %s\n" % (path, e))
             src = None
         if src:
@@ -175,7 +175,7 @@ def cmd_index(out, paths):
 
 
 # ---------------------------------------------------------------------------
-# Laden
+# Loading
 # ---------------------------------------------------------------------------
 
 def load_qch(path, vpath):
@@ -193,7 +193,7 @@ def load_qch(path, vpath):
         if not row:
             raise FileNotFoundError(vpath)
         data = bytes(row[0])
-        # qCompress: 4 Byte Länge (big endian) + zlib
+        # qCompress: 4-byte length (big endian) + zlib
         try:
             raw = zlib.decompress(data[4:])
         except zlib.error:
@@ -243,15 +243,15 @@ class Converter(HTMLParser):
         self.lines = []
         self.anchors = {}
         self.pending_anchors = []
-        self.cur = []           # Inline-Text des aktuellen Blocks
+        self.cur = []           # inline text of the current block
         self.stack = []         # [tag, skip]
         self.skip = 0
         self.pre = 0
         self.pre_lang = ""
         self.pre_buf = []
-        self.lists = []         # ["ul"/"ol", zähler]
+        self.lists = []         # ["ul"/"ol", counter]
         self.heading = 0
-        self.links = []         # offene <a>: href oder None
+        self.links = []         # open <a>: href or None
         self.tables = []        # [{"rows": [[cells]], "cls": str}]
         self.cell = None
         self.title = ""
@@ -260,7 +260,7 @@ class Converter(HTMLParser):
         self.quote = 0
         self.code = 0
 
-    # -- Ausgabe ----------------------------------------------------------
+    # -- Output -----------------------------------------------------------
     def emit(self, line):
         if self.pending_anchors and line.strip():
             for a in self.pending_anchors:
@@ -404,7 +404,7 @@ class Converter(HTMLParser):
         elif tag == "img":
             alt = attrs.get("alt")
             if alt and alt.strip():
-                self.write("[Bild: " + alt.strip() + "]")
+                self.write("[Image: " + alt.strip() + "]")
 
     def flush_li(self):
         if not self.lists:
@@ -421,7 +421,7 @@ class Converter(HTMLParser):
                 self.emit("  " * depth + " " * len(prefix) + part)
 
     def handle_endtag(self, tag):
-        # passendes Start-Tag suchen (fehlertolerant)
+        # find the matching start tag (fault-tolerant)
         idx = None
         for i in range(len(self.stack) - 1, -1, -1):
             if self.stack[i][0] == tag:
@@ -452,7 +452,7 @@ class Converter(HTMLParser):
                 text = "".join(self.pre_buf)
                 text = text.strip("\n")
                 lines = text.split("\n")
-                # gemeinsame Einrückung entfernen
+                # remove common indentation
                 ind = min((len(l) - len(l.lstrip(" ")) for l in lines if l.strip()), default=0)
                 self.blank()
                 if self.lists:
@@ -526,7 +526,7 @@ class Converter(HTMLParser):
         self.blank()
         has_items = any("\x00" in c for r in rows for c in r)
         if has_items:
-            # Listen in Tabellenzellen (Properties, "-members"-Seiten): ein Eintrag pro Zeile
+            # Lists in table cells (properties, "-members" pages): one entry per line
             for r in rows:
                 for c in r:
                     for item in c.split("\x00"):
@@ -534,7 +534,7 @@ class Converter(HTMLParser):
                         if item:
                             self.emit("- " + item)
         elif "alignedsummary" in cls or "propsummary" in cls or width <= 2 and not t["header"]:
-            # Zusammenfassungen: "Typ  Signatur" als Liste
+            # Summaries: "type  signature" as a list
             for r in rows:
                 left = r[0].strip() if r else ""
                 right = " ".join(c.strip() for c in r[1:]).strip()
@@ -577,7 +577,7 @@ class Converter(HTMLParser):
         if self.cell is None and not data.strip() and not self.cur:
             return
         if not self.code:
-            # nur echte Stolpersteine escapen: "char **argv", "operator[]()"
+            # escape only real pitfalls: "char **argv", "operator[]()"
             data = data.replace("**", "\\*\\*").replace("[]", "\\[\\]")
         self.write(data.replace("\n", " "))
 
@@ -587,7 +587,7 @@ class Converter(HTMLParser):
             self.lines.pop()
         while self.lines and self.lines[0] == "":
             self.lines.pop(0)
-        # Mehrfach-Leerzeilen zusammenfassen (außer in Code)
+        # Collapse multiple blank lines (except in code)
         out, anchors_shift = [], {}
         in_code = False
         mapping = {}
@@ -608,7 +608,7 @@ def render(html, vpath):
     conv.feed(html)
     conv.close()
     lines, anchors = conv.result()
-    if not lines:  # keine <h1>: alles nehmen
+    if not lines:  # no <h1>: take everything
         conv = Converter(vpath, require_h1=False)
         conv.feed(html)
         conv.close()

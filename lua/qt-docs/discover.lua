@@ -1,4 +1,4 @@
--- Qt-Dokumentation auf dem System finden.
+-- Find the Qt documentation on the system.
 local config = require("qt-docs.config")
 
 local M = {}
@@ -11,7 +11,7 @@ local function isdir(p)
   return st and st.type == "directory"
 end
 
---- Enthält das Verzeichnis Doku (.qch oder Modul-Ordner mit *.index)?
+--- Does the directory contain docs (.qch or a module folder with *.index)?
 function M.has_docs(dir)
   if not isdir(dir) then
     return false
@@ -56,7 +56,7 @@ local function qmake_docs(qmake)
   return query_cache[qmake] or nil
 end
 
---- Version aus einem Pfad wie ~/Qt/6.8.0/gcc_64 oder Qt-6.8.0
+--- Version from a path such as ~/Qt/6.8.0/gcc_64 or Qt-6.8.0
 local function version_of(path)
   return path and (path:match("Qt%-(%d+%.%d+%.%d+)") or path:match("/(%d+%.%d+%.%d+)/")) or nil
 end
@@ -66,7 +66,7 @@ local function version_key(v)
   return (tonumber(a) or 0) * 1000000 + (tonumber(b) or 0) * 1000 + (tonumber(c) or 0)
 end
 
---- Projekt-Qt über qmake-tools.nvim (qmake des aktiven Kits)
+--- Project Qt via qmake-tools.nvim (qmake of the active kit)
 local function from_qmake_tools()
   local ok, qt = pcall(require, "qmake-tools")
   if not ok or (type(qt.is_qmake_project) == "function" and not qt.is_qmake_project()) then
@@ -85,7 +85,7 @@ local function from_qmake_tools()
   return ok2 and dir or nil
 end
 
---- Projekt-Qt über cmake-tools.nvim (Qt6_DIR aus der CMakeCache.txt)
+--- Project Qt via cmake-tools.nvim (Qt6_DIR from CMakeCache.txt)
 local function from_cmake_tools()
   local ok, cmake = pcall(require, "cmake-tools")
   if not ok or type(cmake.get_build_directory) ~= "function" then
@@ -127,7 +127,7 @@ local function from_cmake_tools()
       end
     end
   end
-  -- Online-Installer: <root>/<version>/<arch> → <root>/Docs/Qt-<version>
+  -- Online installer: <root>/<version>/<arch> → <root>/Docs/Qt-<version>
   local ver = version_of(prefix)
   if ver then
     local root = prefix:match("^(.*)/" .. vim.pesc(ver) .. "/")
@@ -137,7 +137,7 @@ local function from_cmake_tools()
   end
 end
 
---- Kandidaten in typischen Installationsorten
+--- Candidates in typical installation locations
 local function system_candidates()
   local home = vim.fs.normalize("~")
   local res = {}
@@ -175,7 +175,7 @@ local function system_candidates()
   return res
 end
 
---- Liste der zu indizierenden Pfade
+--- List of paths to index
 ---@return string[] paths, string|nil reason
 function M.paths()
   local o = config.options
@@ -184,7 +184,7 @@ function M.paths()
     for _, p in ipairs(o.paths) do
       res[#res + 1] = vim.fs.normalize(vim.fn.expand(p))
     end
-    return res, "Konfiguration"
+    return res, "configuration"
   end
   local project = from_qmake_tools() or from_cmake_tools()
   local found, seen = {}, {}
@@ -194,9 +194,9 @@ function M.paths()
       found[#found + 1] = { path = p, why = why, version = version_of(p) }
     end
   end
-  add(project, "Projekt-Kit")
+  add(project, "project kit")
   for _, p in ipairs(system_candidates()) do
-    add(p, "System")
+    add(p, "system")
   end
   if #found == 0 then
     return {}, nil
@@ -204,12 +204,12 @@ function M.paths()
   if not o.single_version then
     return vim.tbl_map(function(f)
       return f.path
-    end, found), "alle"
+    end, found), "all"
   end
-  if found[1].why == "Projekt-Kit" then
-    return { found[1].path }, "Projekt-Kit"
+  if found[1].why == "project kit" then
+    return { found[1].path }, "project kit"
   end
-  -- neueste Version, Verzeichnisse ohne Version (Distribution) zuletzt
+  -- newest version, directories without a version (distribution) last
   for i, f in ipairs(found) do
     f.order = i
   end
@@ -220,7 +220,7 @@ function M.paths()
     end
     return a.order < b.order
   end)
-  return { found[1].path }, "neueste Version"
+  return { found[1].path }, "newest version"
 end
 
 return M

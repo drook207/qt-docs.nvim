@@ -10,40 +10,40 @@ function M.check()
   if vim.fn.has("nvim-0.10") == 1 then
     h.ok("Neovim >= 0.10")
   else
-    h.error("Neovim >= 0.10 benötigt")
+    h.error("Neovim >= 0.10 required")
   end
 
   local py = config.python()
   local res = vim.fn.executable(py) == 1
     and vim.system({ py, "-c", "import sqlite3, zlib, html.parser, json; print('ok')" }, { text = true }):wait(5000)
   if res and res.code == 0 then
-    h.ok("Python: " .. vim.fn.exepath(py) .. " (sqlite3, zlib vorhanden)")
+    h.ok("Python: " .. vim.fn.exepath(py) .. " (sqlite3, zlib available)")
   else
-    h.error("Python 3 mit sqlite3/zlib nicht gefunden (" .. py .. ")", { "python = '/pfad/zu/python3' setzen" })
+    h.error("Python 3 with sqlite3/zlib not found (" .. py .. ")", { "set python = '/path/to/python3'" })
   end
 
   if vim.fn.executable("curl") == 1 then
-    h.ok("curl vorhanden (Online-Doku wird in Neovim angezeigt)")
+    h.ok("curl available (online docs are displayed in Neovim)")
   else
-    h.info("curl fehlt – Online-Doku öffnet im Browser")
+    h.info("curl missing – online docs open in the browser")
   end
 
   local paths, why = discover.paths()
   if #paths == 0 then
-    h.warn("keine lokale Qt-Dokumentation gefunden", {
-      "Qt-Doku installieren (Maintenance Tool: »Qt <Version> → Additional Libraries/Documentation«,",
+    h.warn("no local Qt documentation found", {
+      "install Qt docs (Maintenance Tool: »Qt <Version> → Additional Libraries/Documentation«,",
       "  Debian/Ubuntu: qt6-base-doc / qt6-documentation-tools, Arch: qt6-doc)",
-      "oder paths = { '~/Qt/Docs/Qt-6.8.0' } setzen",
-      config.options.online.enabled and "bis dahin wird die Online-Doku verwendet" or "",
+      "or set paths = { '~/Qt/Docs/Qt-6.8.0' }",
+      config.options.online.enabled and "until then the online docs are used" or "",
     })
     return
   end
   for _, p in ipairs(paths) do
-    h.ok("Doku: " .. p .. " (" .. (why or "") .. ")")
+    h.ok("Docs: " .. p .. " (" .. (why or "") .. ")")
   end
   local data, err = index.get_sync()
   if data then
-    h.ok(("Index: %d Stichwörter, %d Seiten, %d Quellen"):format(#data.entries, #data.files, #data.sources))
+    h.ok(("Index: %d keywords, %d pages, %d sources"):format(#data.entries, #data.files, #data.sources))
   else
     h.error("Index: " .. tostring(err))
   end

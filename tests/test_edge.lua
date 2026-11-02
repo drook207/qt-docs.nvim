@@ -1,4 +1,4 @@
--- Randfälle / echte Qt-Doku (QT_DOCS_TEST). Fälle ohne QT_DOCS_TEST laufen mit der Fixture.
+-- Edge cases / real Qt docs (QT_DOCS_TEST). Cases without QT_DOCS_TEST run with the fixture.
 local T = _G.T
 local real = os.getenv("QT_DOCS_TEST")
 if real == "" then
@@ -13,7 +13,7 @@ end
 
 local function cursor_on(pattern)
   local lnum = vim.fn.search(pattern, "cw")
-  T.ok(lnum > 0, "nicht gefunden: " .. pattern)
+  T.ok(lnum > 0, "not found: " .. pattern)
   local s = vim.fn.match(vim.api.nvim_get_current_line(), pattern)
   vim.api.nvim_win_set_cursor(0, { lnum, s + 1 })
   return lnum
@@ -42,35 +42,35 @@ local function capture_notify(fn)
 end
 
 -- ---------------------------------------------------------------------------
--- Robustheit (Fixture)
+-- Robustness (fixture)
 -- ---------------------------------------------------------------------------
 
-T.case("edge: defekte und leere .qch im Doku-Ordner werden übersprungen", function()
+T.case("edge: broken and empty .qch files in the docs folder are skipped", function()
   local dir = T.fixture()
   local fh = assert(io.open(dir .. "/broken.qch", "wb"))
-  fh:write("das ist keine sqlite-datei" .. string.rep("\0", 100))
+  fh:write("this is not a sqlite file" .. string.rep("\0", 100))
   fh:close()
   assert(io.open(dir .. "/empty.qch", "wb")):close()
   T.setup({ paths = { dir } })
   local data, err = require("qt-docs.index").get_sync()
-  T.ok(data, "kein Index: " .. tostring(err))
+  T.ok(data, "no index: " .. tostring(err))
   T.eq(#data.sources, 2)
   T.eq(require("qt-docs.index").lookup(data, "QDemo::setName")[1].anchor, "setName")
 end)
 
-T.case("edge: nicht existierende Pfade → keine Doku, kein Fehler", function()
+T.case("edge: nonexistent paths → no docs, no error", function()
   T.setup({ paths = { "/gibt/es/nicht", vim.fn.tempname() .. "/x.qch" }, online = { enabled = false } })
   local data, err
   local msgs, ok, perr = capture_notify(function()
     data, err = require("qt-docs.index").get_sync()
     vim.cmd("QtDoc QString")
   end)
-  T.ok(ok, "Fehler: " .. tostring(perr))
+  T.ok(ok, "error: " .. tostring(perr))
   T.eq(data, nil)
-  T.ok(err, "keine Fehlermeldung")
+  T.ok(err, "no error message")
 end)
 
-T.case("edge: Python fehlt → Meldung statt Lua-Fehler (Index)", function()
+T.case("edge: Python missing → message instead of Lua error (index)", function()
   local dir = T.fixture()
   T.setup({ paths = { dir }, python = "/nicht/vorhanden/python3" })
   local data, err = require("qt-docs.index").get_sync()
@@ -78,44 +78,44 @@ T.case("edge: Python fehlt → Meldung statt Lua-Fehler (Index)", function()
   T.ok(err and err:find("Python", 1, true), tostring(err))
 end)
 
-T.case("edge: Python fehlt, Index aus Cache → :QtDoc wirft keinen Lua-Fehler", function()
+T.case("edge: Python missing, index from cache → :QtDoc raises no Lua error", function()
   local dir = T.fixture()
   local cache = vim.fn.tempname()
   T.setup({ paths = { dir }, cache_dir = cache })
-  T.ok(require("qt-docs.index").get_sync(), "Index")
-  -- gleicher Cache, aber Python nicht (mehr) vorhanden
+  T.ok(require("qt-docs.index").get_sync(), "index")
+  -- same cache, but Python is (no longer) available
   T.setup({ paths = { dir }, cache_dir = cache, python = "/nicht/vorhanden/python3" })
   local msgs, ok, err = capture_notify(function()
     vim.cmd("QtDoc QDemo::setName")
     vim.wait(500)
   end)
-  T.ok(ok, "Lua-Fehler statt Meldung: " .. tostring(err))
+  T.ok(ok, "Lua error instead of message: " .. tostring(err))
 end)
 
-T.case("edge: Cache-Verzeichnis nicht anlegbar → Index trotzdem nutzbar oder Meldung", function()
+T.case("edge: cache directory cannot be created → index still usable or message", function()
   local dir = T.fixture()
   local file = vim.fn.tempname()
   vim.fn.writefile({ "x" }, file)
-  -- Elternpfad ist eine Datei → mkdir schlägt fehl
+  -- parent path is a file → mkdir fails
   T.setup({ paths = { dir }, cache_dir = file .. "/cache" })
   local data, err
   local _, ok, perr = capture_notify(function()
     data, err = require("qt-docs.index").get_sync()
   end)
-  T.ok(ok, "Lua-Fehler: " .. tostring(perr))
-  T.ok(data or err, "weder Index noch Fehlermeldung")
+  T.ok(ok, "Lua error: " .. tostring(perr))
+  T.ok(data or err, "neither index nor error message")
 end)
 
-T.case("edge: follow auf Zeile ohne Link schlägt Wort nach", function()
+T.case("edge: follow on a line without a link looks up the word", function()
   local dir = T.fixture()
   T.setup({ paths = { dir } })
   vim.cmd("QtDoc QDemo::setName")
-  T.ok(wait_page("qtdemo/qdemo.html"), "Seite")
-  -- Überschrift "### void QDemo::setName(...)" hat keinen Link
+  T.ok(wait_page("qtdemo/qdemo.html"), "page")
+  -- heading "### void QDemo::setName(...)" has no link
   local line = vim.api.nvim_get_current_line()
   T.ok(not line:find("](", 1, true), line)
   local msgs, ok, err = capture_notify(function()
-    vim.api.nvim_win_set_cursor(0, { vim.fn.line("."), 0 }) -- auf "void"
+    vim.api.nvim_win_set_cursor(0, { vim.fn.line("."), 0 }) -- on "void"
     require("qt-docs.viewer").follow()
     vim.wait(300)
   end)
@@ -124,7 +124,7 @@ T.case("edge: follow auf Zeile ohne Link schlägt Wort nach", function()
 end)
 
 -- ---------------------------------------------------------------------------
--- Echte Qt-Doku
+-- Real Qt docs
 -- ---------------------------------------------------------------------------
 if not real then
   return
@@ -133,11 +133,11 @@ end
 local function setup_real(extra)
   T.setup(vim.tbl_deep_extend("force", { paths = { real }, online = { enabled = false } }, extra or {}))
   local data = require("qt-docs.index").get_sync()
-  T.ok(data, "kein Index")
+  T.ok(data, "no index")
   return data
 end
 
-T.case("edge/real: typische Stichwörter landen am richtigen Anker", function()
+T.case("edge/real: typical keywords land at the right anchor", function()
   local data = setup_real()
   local index = require("qt-docs.index")
   local viewer = require("qt-docs.viewer")
@@ -164,7 +164,7 @@ T.case("edge/real: typische Stichwörter landen am richtigen Anker", function()
   for _, x in ipairs(expect) do
     local e = index.lookup(data, x[1])[1]
     if not e or e.vpath ~= x[2] then
-      bad[#bad + 1] = x[1] .. " → " .. (e and e.vpath or "nichts")
+      bad[#bad + 1] = x[1] .. " → " .. (e and e.vpath or "nothing")
     else
       local page = load_page(data, e.vpath)
       local sec = page and viewer.section(page, e.anchor) or {}
@@ -176,7 +176,7 @@ T.case("edge/real: typische Stichwörter landen am richtigen Anker", function()
   T.eq(bad, {})
 end)
 
-T.case("edge/real: geerbte Member (QPushButton::setText, QFile::readAll)", function()
+T.case("edge/real: inherited members (QPushButton::setText, QFile::readAll)", function()
   local data = setup_real()
   local index = require("qt-docs.index")
   local miss = {}
@@ -189,7 +189,7 @@ T.case("edge/real: geerbte Member (QPushButton::setText, QFile::readAll)", funct
   T.eq(miss, {})
 end)
 
-T.case("edge/real: Konstruktor, QIODevice::ReadOnly, vollqualifizierter Enum-Wert, Template-Argument", function()
+T.case("edge/real: constructor, QIODevice::ReadOnly, fully qualified enum value, template argument", function()
   local data = setup_real()
   local index = require("qt-docs.index")
   local miss = {}
@@ -202,7 +202,7 @@ T.case("edge/real: Konstruktor, QIODevice::ReadOnly, vollqualifizierter Enum-Wer
   T.eq(miss, {})
 end)
 
-T.case("edge/real: Link in anderes Modul, Überladungs-Anker, Verlauf", function()
+T.case("edge/real: link to another module, overload anchor, history", function()
   setup_real()
   local viewer = require("qt-docs.viewer")
   vim.cmd("QtDoc QWidget")
@@ -210,26 +210,26 @@ T.case("edge/real: Link in anderes Modul, Überladungs-Anker, Verlauf", function
   local win = vim.api.nvim_get_current_win()
   cursor_on("\\[QObject\\](qtcore/qobject.html)")
   viewer.follow()
-  T.ok(wait_page("qtcore/qobject.html"), "QObject über Modulgrenze")
+  T.ok(wait_page("qtcore/qobject.html"), "QObject across module boundary")
   T.eq(vim.api.nvim_get_current_win(), win)
-  -- Überladung: Link auf connect-1 (zweite connect-Überladung)
+  -- overload: link to connect-1 (second connect overload)
   vim.cmd("normal! gg")
   cursor_on("\\[connect\\](#connect-1)")
   viewer.follow()
   T.ok(T.wait(function()
     return vim.api.nvim_get_current_line():match("^### .*QObject::connect%(const QObject %*sender, const QMetaMethod")
-  end), "falsche Überladung: " .. vim.api.nvim_get_current_line())
+  end), "wrong overload: " .. vim.api.nvim_get_current_line())
   viewer.history_move(-1)
   T.ok(T.wait(function()
     return vim.b.qt_docs == "qtcore/qobject.html" and not vim.api.nvim_get_current_line():match("^### ")
-  end), "zurück (gleiche Seite)")
+  end), "back (same page)")
   viewer.history_move(-1)
-  T.ok(wait_page("qtwidgets/qwidget.html"), "zurück zu QWidget")
+  T.ok(wait_page("qtwidgets/qwidget.html"), "back to QWidget")
   viewer.history_move(1)
-  T.ok(wait_page("qtcore/qobject.html"), "vor")
+  T.ok(wait_page("qtcore/qobject.html"), "forward")
 end)
 
-T.case("edge/real: viele Seiten → ein Doku-Fenster, Buffer werden wiederverwendet", function()
+T.case("edge/real: many pages → one docs window, buffers are reused", function()
   setup_real({ window = "vsplit" })
   local wins0 = #vim.api.nvim_tabpage_list_wins(0)
   local kws = { "QString", "QObject", "QWidget", "QList", "QMap", "QTimer", "QString", "QObject" }
@@ -237,9 +237,9 @@ T.case("edge/real: viele Seiten → ein Doku-Fenster, Buffer werden wiederverwen
     vim.cmd("QtDoc " .. k)
     T.ok(T.wait(function()
       return (vim.b.qt_docs or ""):find(k:lower() .. ".html", 1, true) ~= nil
-    end, 10000), "nicht geöffnet: " .. k)
+    end, 10000), "not opened: " .. k)
   end
-  T.eq(#vim.api.nvim_tabpage_list_wins(0), wins0 + 1, "mehrere Doku-Fenster")
+  T.eq(#vim.api.nvim_tabpage_list_wins(0), wins0 + 1, "multiple docs windows")
   local n = 0
   for _, b in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_get_name(b):match("^qtdoc://") then
@@ -249,18 +249,18 @@ T.case("edge/real: viele Seiten → ein Doku-Fenster, Buffer werden wiederverwen
   T.eq(n, 6)
 end)
 
-T.case("edge/real: window=float öffnet Float und folgt Links darin", function()
+T.case("edge/real: window=float opens a float and follows links inside it", function()
   setup_real({ window = "float" })
   vim.cmd("QtDoc QTimer")
   T.ok(wait_page("qtcore/qtimer.html"), "QTimer")
   local win = vim.api.nvim_get_current_win()
-  T.ok(vim.api.nvim_win_get_config(win).relative ~= "", "kein Float")
+  T.ok(vim.api.nvim_win_get_config(win).relative ~= "", "no float")
   cursor_on("\\[QObject\\](qtcore/qobject.html)")
   require("qt-docs.viewer").follow()
-  T.ok(wait_page("qtcore/qobject.html"), "Link im Float")
+  T.ok(wait_page("qtcore/qobject.html"), "link in the float")
   T.eq(vim.api.nvim_get_current_win(), win)
   vim.cmd("QtDoc QString")
-  T.ok(wait_page("qtcore/qstring.html"), "zweite Seite")
+  T.ok(wait_page("qtcore/qstring.html"), "second page")
   local floats = 0
   for _, w in ipairs(vim.api.nvim_list_wins()) do
     if vim.api.nvim_win_get_config(w).relative ~= "" then
@@ -270,7 +270,7 @@ T.case("edge/real: window=float öffnet Float und folgt Links darin", function()
   T.eq(floats, 1)
 end)
 
-T.case("edge/real: :QtDocSearch mit Präfix", function()
+T.case("edge/real: :QtDocSearch with prefix", function()
   setup_real()
   local items
   local orig = vim.ui.select
@@ -282,46 +282,46 @@ T.case("edge/real: :QtDocSearch mit Präfix", function()
   assert(ok, err)
   T.ok(T.wait(function()
     return items ~= nil
-  end), "kein Picker")
+  end), "no picker")
   T.ok(vim.tbl_contains(items, "QString::arg"), vim.inspect(items))
   for _, it in ipairs(items) do
     T.ok(it:lower():sub(1, 10) == "qstring::a", it)
   end
 end)
 
-T.case("edge/real: Hover-Abschnitt Klasse und Property", function()
+T.case("edge/real: hover section class and property", function()
   local data = setup_real()
   local viewer = require("qt-docs.viewer")
   local page = load_page(data, "qtwidgets/qwidget.html")
   local sec = viewer.section(page, "enabled-prop")
   T.eq(sec[1], "### enabled : bool")
-  T.ok(#sec < 40, "Abschnitt zu lang: " .. #sec)
+  T.ok(#sec < 40, "section too long: " .. #sec)
   local top = viewer.section(page, "")
   T.eq(top[1], "# QWidget Class")
-  T.ok(#top < 30, "Klassen-Hover zu lang: " .. #top)
+  T.ok(#top < 30, "class hover too long: " .. #top)
 end)
 
-T.case("edge/real: Rendering – Properties-Liste ist keine einzelne Code-Zeile", function()
+T.case("edge/real: rendering – property list is not a single code line", function()
   local data = setup_real()
   local page = load_page(data, "qtwidgets/qwidget.html")
   local bad = {}
   for _, l in ipairs(page.lines) do
     if l:match("^%s*%- `[^`]*%*%*%[") or #l > 2000 then
-      bad[#bad + 1] = l:sub(1, 120) .. " … (" .. #l .. " Zeichen)"
+      bad[#bad + 1] = l:sub(1, 120) .. " … (" .. #l .. " characters)"
     end
   end
   T.eq(bad, {})
-  T.ok(page.anchors["acceptDrops-prop"], "Anker")
+  T.ok(page.anchors["acceptDrops-prop"], "anchor")
   local found = false
   for _, l in ipairs(page.lines) do
     if l:find("[acceptDrops](#acceptDrops-prop)", 1, true) and #l < 200 then
       found = true
     end
   end
-  T.ok(found, "Property acceptDrops nicht als eigene Zeile")
+  T.ok(found, "property acceptDrops not on its own line")
 end)
 
-T.case("edge/real: Rendering – Members-Seite als Liste", function()
+T.case("edge/real: rendering – members page as a list", function()
   local data = setup_real()
   local page = load_page(data, "qtcore/qstring-members.html")
   local long = 0
@@ -330,24 +330,24 @@ T.case("edge/real: Rendering – Members-Seite als Liste", function()
       long = long + 1
     end
   end
-  T.eq(long, 0, "Members-Seite hat Riesenzeilen")
+  T.eq(long, 0, "members page has huge lines")
 end)
 
-T.case("edge/real: Hover über Überladung zeigt alle/passende Überladungen", function()
+T.case("edge/real: hover over an overload shows all/matching overloads", function()
   local data = setup_real()
   local viewer = require("qt-docs.viewer")
   local page = load_page(data, "qtcore/qstring.html")
   local sec = table.concat(viewer.section(page, "arg"), "\n")
-  -- QString::arg hat >10 Überladungen (arg-1 …); der Hover zeigt nur die erste
+  -- QString::arg has >10 overloads (arg-1 …); the hover shows only the first
   T.ok(sec:find("QString::arg(int a", 1, true) or sec:find("QString::arg(qlonglong", 1, true),
-    "nur erste Überladung im Hover:\n" .. sec:sub(1, 200))
+    "only the first overload in the hover:\n" .. sec:sub(1, 200))
 end)
 
-T.case("edge/real: Anker fehlt in der Seite → Fallback trifft falsche Überschrift", function()
+T.case("edge/real: anchor missing on the page → fallback hits the wrong heading", function()
   local data = setup_real()
   local index = require("qt-docs.index")
   local viewer = require("qt-docs.viewer")
-  -- Index: QString::iterator → #iterator-typedef, Seite hat nur #iterator-typedefx
+  -- index: QString::iterator → #iterator-typedef, page only has #iterator-typedefx
   local e = index.lookup(data, "QString::iterator")[1]
   local page = load_page(data, e.vpath)
   T.eq(viewer.section(page, e.anchor)[1], "### QString::iterator")

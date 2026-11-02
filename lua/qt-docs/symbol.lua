@@ -1,10 +1,10 @@
--- Symbol unter dem Cursor in Doku-Stichwörter übersetzen.
--- Mit clangd: Hover auswerten (Methode → Klasse::methode, Variable → ihr Typ).
+-- Translate the symbol under the cursor into doc keywords.
+-- With clangd: evaluate the hover (method → Class::method, variable → its type).
 local config = require("qt-docs.config")
 
 local M = {}
 
---- Bezeichner (mit ::) unter dem Cursor
+--- Identifier (with ::) under the cursor
 function M.word_at_cursor()
   local line = vim.api.nvim_get_current_line()
   local col = vim.api.nvim_win_get_cursor(0)[2] + 1
@@ -22,7 +22,7 @@ function M.word_at_cursor()
     e = e + 1
   end
   local w = line:sub(s, e):gsub("^:+", ""):gsub(":+$", "")
-  -- nur bis zum Teil unter dem Cursor: QString::fromUtf8 mit Cursor auf QString → QString
+  -- only up to the part under the cursor: QString::fromUtf8 with cursor on QString → QString
   local rel = col - s + 1
   local upto = w:find("::", rel, true)
   if upto then
@@ -31,7 +31,7 @@ function M.word_at_cursor()
   return w
 end
 
---- Typ bereinigen: "const QList<QString> &" → "QList", Template-Argumente separat
+--- Clean up the type: "const QList<QString> &" → "QList", template arguments separately
 local function clean_type(t)
   t = t:gsub("%f[%w_]const%f[^%w_]", ""):gsub("%f[%w_]volatile%f[^%w_]", "")
   t = t:gsub("[%*&]", "")
@@ -40,7 +40,7 @@ local function clean_type(t)
   return vim.trim(outer), inner
 end
 
---- Kandidaten aus einem clangd-Hover-Text
+--- Candidates from a clangd hover text
 function M.from_hover(text, word)
   local cands = {}
   local function add(c)
@@ -105,7 +105,7 @@ local function clangd_hover(buf)
   end
 end
 
---- Kandidaten für das Symbol unter dem Cursor (beste zuerst)
+--- Candidates for the symbol under the cursor (best first)
 function M.candidates(buf)
   buf = buf or vim.api.nvim_get_current_buf()
   local word = M.word_at_cursor()

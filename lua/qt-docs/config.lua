@@ -1,33 +1,33 @@
 local M = {}
 
 M.defaults = {
-  -- Doku-Verzeichnisse oder .qch-Dateien. Leer = automatisch suchen
-  -- (qmake -query QT_INSTALL_DOCS, qmake-tools/cmake-tools-Kit, ~/Qt/Docs/Qt-*, /usr/share/qt6/doc, …)
+  -- Doc directories or .qch files. Empty = search automatically
+  -- (qmake -query QT_INSTALL_DOCS, qmake-tools/cmake-tools kit, ~/Qt/Docs/Qt-*, /usr/share/qt6/doc, …)
   paths = {},
-  -- Bei mehreren gefundenen Qt-Versionen: nur die beste (passend zum Projekt bzw.
-  -- die neueste) verwenden. false = alle gefundenen indizieren.
+  -- When multiple Qt versions are found: use only the best one (matching the project
+  -- or the newest). false = index all found versions.
   single_version = true,
-  -- Python 3 (für .qch und HTML → Markdown)
-  python = nil, -- nil = "python3", unter Windows "python"
-  -- Anzeige: "float" | "split" | "vsplit" | "tab" | "current"
+  -- Python 3 (for .qch and HTML → Markdown)
+  python = nil, -- nil = "python3", on Windows "python"
+  -- Display: "float" | "split" | "vsplit" | "tab" | "current"
   window = "vsplit",
   float = { width = 0.8, height = 0.85, border = "rounded" },
-  split_size = nil, -- Breite/Höhe des Splits (nil = Hälfte)
-  -- Hover (:QtDocHover / K): nur den Abschnitt des Symbols im Float zeigen
+  split_size = nil, -- width/height of the split (nil = half)
+  -- Hover (:QtDocHover / K): show only the symbol's section in the float
   hover = { max_width = 100, max_height = 30, border = "rounded" },
-  -- K in C++-Buffern: Qt-Doku, falls das Symbol in der Doku steht, sonst
+  -- K in C++ buffers: Qt docs if the symbol is in the docs, otherwise
   -- vim.lsp.buf.hover()
   map_k = false,
-  -- Symbol unter dem Cursor über clangd (Hover) auflösen: str.arg() → QString::arg
+  -- Resolve the symbol under the cursor via clangd (hover): str.arg() → QString::arg
   use_clangd = true,
-  -- Online-Doku, wenn lokal nichts gefunden wird
+  -- Online docs when nothing is found locally
   online = {
     enabled = true,
     base_url = "https://doc.qt.io/qt-6/",
-    -- "render": per curl laden und in Neovim anzeigen, "browser": im Browser öffnen
+    -- "render": fetch via curl and display in Neovim, "browser": open in the browser
     mode = "render",
   },
-  -- Tastenbelegung im Doku-Buffer
+  -- Key mappings in the doc buffer
   keys = {
     follow = { "<CR>", "<C-]>", "gd" },
     back = { "<BS>", "<C-o>" },

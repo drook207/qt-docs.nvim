@@ -1,5 +1,5 @@
 #!/bin/sh
-# Fake-curl für Tests: liefert Dateien aus $QTDOCS_FAKE_WEB statt aus dem Netz
+# Fake curl for tests: serves files from $QTDOCS_FAKE_WEB instead of the network
 for a in "$@"; do url="$a"; done
 file="$QTDOCS_FAKE_WEB/$(basename "${url%%#*}")"
 [ -f "$file" ] || exit 22

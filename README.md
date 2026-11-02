@@ -1,116 +1,135 @@
 # qt-docs.nvim
 
-Die Qt-Dokumentation direkt in Neovim lesen – offline aus den `.qch`-Dateien bzw. der
-HTML-Doku deiner Qt-Installation, mit Online-Fallback auf doc.qt.io.
+Read the Qt documentation directly in Neovim – offline from the `.qch` files or the
+HTML docs of your Qt installation, with an online fallback to doc.qt.io.
 
-- `:QtDoc` auf `str.arg(…)` öffnet **QString::arg** – das Symbol wird über clangd aufgelöst
-  (Methode → Klasse, Variable → ihr Typ, Enum-Wert → `Qt::AlignLeft`)
-- Hover-Float mit nur dem passenden Abschnitt (wie `K`), optional als `K`-Ersatz:
-  Qt-Doku, wenn das Symbol in der Doku steht, sonst normaler LSP-Hover
-- Seiten als Markdown (Überschriften, Codeblöcke mit C++-Highlighting, Tabellen, Links),
-  funktioniert mit render-markdown.nvim / markview.nvim
-- Links folgen (auch in andere Module und doc.qt.io-Links lokal), Verlauf zurück/vor,
-  Inhaltsverzeichnis, Suche über alle Stichwörter (Klassen, Funktionen, Enums, Makros, Seiten)
-- Doku wird automatisch gefunden – passend zum Qt des Projekts über
-  **qmake-tools.nvim** (qmake des aktiven Kits) bzw. **cmake-tools.nvim** (`Qt6_DIR` aus der CMakeCache)
+- `:QtDoc` on `str.arg(…)` opens **QString::arg** – the symbol is resolved via clangd
+  (method → class, variable → its type, enum value → `Qt::AlignLeft`)
+- Hover float with only the matching section (like `K`), optionally as a `K` replacement:
+  Qt docs if the symbol is in the docs, otherwise normal LSP hover
+- Pages as Markdown (headings, code blocks with C++ highlighting, tables, links),
+  works with render-markdown.nvim / markview.nvim
+- Follow links (also into other modules and doc.qt.io links locally), history back/forward,
+  table of contents, search across all keywords (classes, functions, enums, macros, pages)
+- Docs are found automatically – matching the project's Qt via
+  **qmake-tools.nvim** (active kit's qmake) or **cmake-tools.nvim** (`Qt6_DIR` from the CMakeCache)
 
-## Voraussetzungen
+## Requirements
 
 - Neovim ≥ 0.10
-- Python 3 (nur Standardbibliothek: `sqlite3`, `zlib`, `html.parser`)
-- lokale Qt-Doku (empfohlen), z. B.
-  - Qt Online-Installer / Maintenance Tool: *Qt → Qt 6.x → Additional Libraries → Qt Documentation*
-    (landet in `~/Qt/Docs/Qt-6.x.y/*.qch`)
-  - Debian/Ubuntu: `qt6-base-doc` (`.qch`) oder `qt6-base-doc-html`, weitere Module `qt6-*-doc`
-  - Arch: `qt6-doc`, Fedora: `qt6-qtbase-doc`, Homebrew: in `qt` enthalten
-- optional `curl` für die Online-Doku im Editor (sonst Browser)
+- Python 3 (standard library only: `sqlite3`, `zlib`, `html.parser`)
+- local Qt docs (recommended), e.g.
+  - Qt Online Installer / Maintenance Tool: *Qt → Qt 6.x → Additional Libraries → Qt Documentation*
+    (ends up in `~/Qt/Docs/Qt-6.x.y/*.qch`)
+  - Debian/Ubuntu: `qt6-base-doc` (`.qch`) or `qt6-base-doc-html`, further modules `qt6-*-doc`
+  - Arch: `qt6-doc`, Fedora: `qt6-qtbase-doc`, Homebrew: included in `qt`
+- optional `curl` for the online docs in the editor (otherwise browser)
 
-Prüfen mit `:checkhealth qt-docs`.
+Check with `:checkhealth qt-docs`.
 
-## Installation (lazy.nvim)
+## Installation (lazy.nvim / LazyVim)
 
 ```lua
-{
-  "dein-name/qt-docs.nvim",
-  cmd = { "QtDoc", "QtDocHover", "QtDocSearch", "QtDocBrowser", "QtDocIndex" },
-  ft = { "cpp", "c" },
-  opts = { map_k = true },
-  keys = {
-    { "<leader>qk", "<cmd>QtDocHover<cr>", desc = "Qt-Doku (Hover)" },
-    { "<leader>qK", "<cmd>QtDoc<cr>", desc = "Qt-Doku (Seite)" },
-    { "<leader>q/", "<cmd>QtDocSearch<cr>", desc = "Qt-Doku durchsuchen" },
+return {
+  {
+    "drook207/qt-docs.nvim",
+    -- local checkout instead: dir = "~/Projects/qt-docs.nvim",
+    name = "qt-docs.nvim",
+    ft = { "cpp", "c", "objcpp" },
+    cmd = { "QtDoc", "QtDocHover", "QtDocSearch", "QtDocBrowser", "QtDocIndex" },
+    dependencies = {
+      -- optional: find the docs matching the project's Qt
+      { "Civitasv/cmake-tools.nvim", optional = true },
+      { "drook207/qmake-tools.nvim", optional = true },
+    },
+    opts = {
+      -- paths = { "~/Qt/Docs/Qt-6.8.0" }, -- empty = search automatically
+      window = "vsplit", -- "float" | "split" | "vsplit" | "tab" | "current"
+      map_k = true, -- K: Qt docs if available, otherwise LSP hover
+      online = {
+        enabled = true,
+        base_url = "https://doc.qt.io/qt-6/",
+        mode = "render", -- or "browser"
+      },
+    },
+    keys = {
+      { "<leader>qk", "<cmd>QtDocHover<cr>", desc = "Qt docs: hover" },
+      { "<leader>qK", "<cmd>QtDoc<cr>", desc = "Qt docs: open page" },
+      { "<leader>q/", "<cmd>QtDocSearch<cr>", desc = "Qt docs: search" },
+      { "<leader>qb", "<cmd>QtDocBrowser<cr>", desc = "Qt docs: in browser" },
+    },
   },
 }
 ```
 
-## Befehle
+## Commands
 
-| Befehl | |
+| Command | |
 |---|---|
-| `:QtDoc [Stichwort]` | Seite öffnen – ohne Argument das Symbol unter dem Cursor (Tab-Vervollständigung) |
-| `:QtDocHover` | Abschnitt des Symbols unter dem Cursor im Float |
-| `:QtDocSearch [Präfix]` | Picker über alle Stichwörter (`vim.ui.select` – mit telescope/fzf-lua/snacks fuzzy) |
-| `:QtDocBrowser [Stichwort]` | auf doc.qt.io im Browser öffnen |
-| `:QtDocIndex` | Index neu erstellen (passiert sonst automatisch bei Änderungen) |
+| `:QtDoc [keyword]` | Open page – without argument the symbol under the cursor (tab completion) |
+| `:QtDocHover` | Section of the symbol under the cursor in a float |
+| `:QtDocSearch [prefix]` | Picker over all keywords (`vim.ui.select` – fuzzy with telescope/fzf-lua/snacks) |
+| `:QtDocBrowser [keyword]` | Open on doc.qt.io in the browser |
+| `:QtDocIndex` | Rebuild the index (otherwise happens automatically on changes) |
 
-Im Doku-Buffer:
+In the doc buffer:
 
-| Taste | |
+| Key | |
 |---|---|
-| `<CR>` `<C-]>` `gd` | Link unter dem Cursor folgen (ohne Link: Wort nachschlagen) |
-| `<BS>` `<C-o>` / `<Tab>` `<C-i>` | zurück / vor |
-| `K` | Wort unter dem Cursor nachschlagen |
-| `gO` | Inhaltsverzeichnis (Location-List) |
-| `s` | Suche |
-| `gx` | aktuellen Abschnitt im Browser öffnen |
-| `q` | schließen |
+| `<CR>` `<C-]>` `gd` | Follow link under the cursor (without a link: look up the word) |
+| `<BS>` `<C-o>` / `<Tab>` `<C-i>` | back / forward |
+| `K` | Look up the word under the cursor |
+| `gO` | Table of contents (location list) |
+| `s` | Search |
+| `gx` | Open the current section in the browser |
+| `q` | close |
 
-## Konfiguration
+## Configuration
 
 ```lua
 require("qt-docs").setup({
-  paths = {},               -- z. B. { "~/Qt/Docs/Qt-6.8.0" }; leer = automatisch
-  single_version = true,    -- nur eine Qt-Version indizieren (Projekt-Qt bzw. neueste)
-  python = nil,             -- Standard: python3 (Windows: python)
+  paths = {},               -- e.g. { "~/Qt/Docs/Qt-6.8.0" }; empty = automatic
+  single_version = true,    -- index only one Qt version (project Qt or newest)
+  python = nil,             -- default: python3 (Windows: python)
   window = "vsplit",        -- "float" | "split" | "vsplit" | "tab" | "current"
   float = { width = 0.8, height = 0.85, border = "rounded" },
   split_size = nil,
   hover = { max_width = 100, max_height = 30, border = "rounded" },
-  map_k = false,            -- K in C/C++-Buffern: Qt-Doku, sonst LSP-Hover
-  use_clangd = true,        -- Symbol über clangd-Hover auflösen
+  map_k = false,            -- K in C/C++ buffers: Qt docs, otherwise LSP hover
+  use_clangd = true,        -- resolve symbol via clangd hover
   online = {
     enabled = true,
-    base_url = "https://doc.qt.io/qt-6/",  -- z. B. "https://doc.qt.io/qt-5/"
-    mode = "render",        -- "render" (curl + Anzeige in Neovim) | "browser"
+    base_url = "https://doc.qt.io/qt-6/",  -- e.g. "https://doc.qt.io/qt-5/"
+    mode = "render",        -- "render" (curl + display in Neovim) | "browser"
   },
   keys = { follow = { "<CR>", "<C-]>", "gd" }, back = { "<BS>", "<C-o>" }, ... },
-  cache_dir = nil,          -- Standard: stdpath("cache")/qt-docs
+  cache_dir = nil,          -- default: stdpath("cache")/qt-docs
 })
 ```
 
-### Wie die Doku gefunden wird
+### How the docs are found
 
-1. `paths` aus der Konfiguration
-2. Qt des Projekts: qmake-tools.nvim (`qmake -query QT_INSTALL_DOCS` des aktiven Kits) oder
-   cmake-tools.nvim (`Qt6_DIR` in der `CMakeCache.txt` → qmake bzw. `~/Qt/Docs/Qt-<Version>`)
-3. `$QT_DOC_DIR`, `qmake6`/`qmake` im PATH
+1. `paths` from the configuration
+2. Project Qt: qmake-tools.nvim (`qmake -query QT_INSTALL_DOCS` of the active kit) or
+   cmake-tools.nvim (`Qt6_DIR` in `CMakeCache.txt` → qmake or `~/Qt/Docs/Qt-<version>`)
+3. `$QT_DOC_DIR`, `qmake6`/`qmake` in PATH
 4. `~/Qt/Docs/Qt-*`, `/opt/Qt/Docs/Qt-*`, `C:/Qt/Docs/Qt-*`, `/usr/share/qt6/doc`, `/usr/share/qt5/doc`, Homebrew …
 
-Der Stichwort-Index (alle Klassen, Member, Enums, Makros, Seiten) wird einmalig in
-`stdpath("cache")/qt-docs` abgelegt und neu gebaut, sobald sich eine `.qch`/`.index`-Datei ändert.
+The keyword index (all classes, members, enums, macros, pages) is stored once in
+`stdpath("cache")/qt-docs` and rebuilt as soon as a `.qch`/`.index` file changes.
 
-## Zusammenspiel mit qt-assist.nvim
+## Interaction with qt-assist.nvim
 
-Beide Plugins teilen sich das Präfix `<leader>q`; qt-assist erzeugt Code (Getter/Setter/Q_PROPERTY,
-Definitionen), qt-docs zeigt die Doku dazu.
+Both plugins share the `<leader>q` prefix; qt-assist generates code (getters/setters/Q_PROPERTY,
+definitions), qt-docs shows the matching docs.
 
 ## Tests
 
 ```sh
 nvim --headless -u NONE -l tests/run.lua
-# zusätzlich mit echter Doku:
+# additionally with real docs:
 QT_DOCS_TEST=/usr/share/qt6/doc nvim --headless -u NONE -l tests/run.lua
 ```
 
-Die Qt-Dokumentation steht unter der GNU FDL 1.3 und ist nicht Teil dieses Repos; die Tests
-verwenden selbst erzeugte Mini-Fixtures.
+The Qt documentation is under the GNU FDL 1.3 and is not part of this repo; the tests
+use self-generated mini fixtures.

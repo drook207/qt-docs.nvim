@@ -1,4 +1,4 @@
--- Seiten laden (lokal oder online), anzeigen, Links folgen, Verlauf.
+-- Load pages (local or online), display them, follow links, history.
 local config = require("qt-docs.config")
 local index = require("qt-docs.index")
 
@@ -12,16 +12,16 @@ local function notify(msg, level)
 end
 
 -- ---------------------------------------------------------------------------
--- Laden
+-- Loading
 -- ---------------------------------------------------------------------------
 
 local function decode_page(res, vpath, origin)
   if res.code ~= 0 then
-    return nil, (res.stderr ~= "" and res.stderr or "Rendern fehlgeschlagen")
+    return nil, (res.stderr ~= "" and res.stderr or "rendering failed")
   end
   local ok, page = pcall(vim.json.decode, res.stdout)
   if not ok or type(page) ~= "table" then
-    return nil, "ungültige Ausgabe des Helfers"
+    return nil, "invalid output from the helper"
   end
   page.vpath = vpath
   page.origin = origin
@@ -39,7 +39,7 @@ function M.online_url(vpath, anchor)
   return base .. vim.fs.basename(vpath) .. ((anchor and anchor ~= "") and ("#" .. anchor) or "")
 end
 
---- Seite laden. cb(page|nil, err)
+--- Load a page. cb(page|nil, err)
 function M.load(data, vpath, cb)
   if page_cache[vpath] then
     cb(page_cache[vpath])
@@ -48,7 +48,7 @@ function M.load(data, vpath, cb)
   local py = config.python()
   local info = data and data.file_info[vpath]
   if not info and data then
-    -- Link in ein anderes Modul / Online-Pfad: über den Dateinamen suchen
+    -- Link into another module / online path: search by filename
     local alt = data.by_basename[vim.fs.basename(vpath)]
     if alt then
       vpath = alt
@@ -78,14 +78,14 @@ function M.load(data, vpath, cb)
       done(res, "local")
     end))
     if not ok then
-      cb(nil, "Python nicht startbar (" .. py .. "): " .. tostring(err))
+      cb(nil, "Python cannot be started (" .. py .. "): " .. tostring(err))
     end
     return
   end
   -- online
   local o = config.options.online
   if not o.enabled then
-    cb(nil, "nicht in der lokalen Doku: " .. vpath)
+    cb(nil, "not in the local docs: " .. vpath)
     return
   end
   local url = M.online_url(vpath)
@@ -97,7 +97,7 @@ function M.load(data, vpath, cb)
   local ok, err = pcall(vim.system, { "curl", "-sSfL", "--max-time", "15", url }, { text = true },
     vim.schedule_wrap(function(res)
       if res.code ~= 0 then
-        cb(nil, "Download fehlgeschlagen: " .. url .. " " .. (res.stderr or ""))
+        cb(nil, "download failed: " .. url .. " " .. (res.stderr or ""))
         return
       end
       local ok2, err2 = pcall(vim.system, { py, index.helper, "render", "stdin", vim.fs.basename(vpath) },
@@ -105,11 +105,11 @@ function M.load(data, vpath, cb)
           done(r, "online")
         end))
       if not ok2 then
-        cb(nil, "Python nicht startbar (" .. py .. "): " .. tostring(err2))
+        cb(nil, "Python cannot be started (" .. py .. "): " .. tostring(err2))
       end
     end))
   if not ok then
-    cb(nil, "curl nicht startbar: " .. tostring(err))
+    cb(nil, "curl cannot be started: " .. tostring(err))
   end
 end
 
@@ -122,7 +122,7 @@ function M.open_browser(url)
 end
 
 -- ---------------------------------------------------------------------------
--- Fenster und Buffer
+-- Windows and buffers
 -- ---------------------------------------------------------------------------
 
 local function find_doc_window()
@@ -148,7 +148,7 @@ local function open_window(buf)
     win = vim.api.nvim_open_win(buf, true, {
       relative = "editor", width = w, height = h,
       row = math.floor((vim.o.lines - h) / 2) - 1, col = math.floor((vim.o.columns - w) / 2),
-      border = o.float.border, style = "minimal", title = " Qt-Doku ", title_pos = "center",
+      border = o.float.border, style = "minimal", title = " Qt Docs ", title_pos = "center",
     })
   else
     local size = o.split_size and tostring(o.split_size) or ""
@@ -206,13 +206,13 @@ local function buffer_for(page)
   end
   pcall(vim.treesitter.start, buf, "markdown")
   local k = config.options.keys
-  map(buf, k.follow, M.follow, "Link folgen")
+  map(buf, k.follow, M.follow, "follow link")
   map(buf, k.back, function()
     M.history_move(-1)
-  end, "zurück")
+  end, "back")
   map(buf, k.forward, function()
     M.history_move(1)
-  end, "vorwärts")
+  end, "forward")
   map(buf, k.close, function()
     local win = vim.api.nvim_get_current_win()
     if #vim.api.nvim_tabpage_list_wins(0) > 1 then
@@ -220,25 +220,25 @@ local function buffer_for(page)
     else
       vim.cmd("bprevious")
     end
-  end, "schließen")
+  end, "close")
   map(buf, k.browser, function()
     local line = vim.api.nvim_win_get_cursor(0)[1]
     local anchor = M.anchor_at(page, line)
     M.open_browser(M.online_url(page.vpath, anchor))
-  end, "im Browser öffnen")
+  end, "open in browser")
   map(buf, k.search, function()
     require("qt-docs").search()
-  end, "suchen")
+  end, "search")
   map(buf, k.toc, function()
     M.toc(buf)
-  end, "Inhaltsverzeichnis")
+  end, "table of contents")
   map(buf, k.lookup, function()
     require("qt-docs").open(vim.fn.expand("<cword>"))
-  end, "Stichwort nachschlagen")
+  end, "look up keyword")
   return buf
 end
 
---- Nächster Anker oberhalb einer Zeile (für gx)
+--- Next anchor above a line (for gx)
 function M.anchor_at(page, line)
   local best, best_line = nil, 0
   for a, l in pairs(page.anchors) do
@@ -257,7 +257,7 @@ local function anchor_line(page, anchor, name)
   if l then
     return l
   end
-  -- Fallback: Überschrift mit dem qualifizierten Namen (QScreen::geometryChanged)
+  -- Fallback: heading with the qualified name (QScreen::geometryChanged)
   if name and name:find("::", 1, true) then
     for i, line in ipairs(page.lines) do
       if line:match("^#+ ") and (line:find(name .. "(", 1, true) or line:find(name .. " :", 1, true)
@@ -266,7 +266,7 @@ local function anchor_line(page, anchor, name)
       end
     end
   end
-  -- dann: Überschrift, deren Funktionsname exakt dem Anker entspricht
+  -- then: heading whose function name exactly matches the anchor
   local base = anchor:gsub("%-[%w]*$", "")
   for i, line in ipairs(page.lines) do
     if line:match("^#+ ") and line:find("%f[%w_]" .. vim.pesc(base) .. "%f[^%w_]") then
@@ -280,7 +280,7 @@ M.anchor_line = anchor_line
 local function push_history(win, item, prev_line)
   local h = history[win] or { list = {}, pos = 0 }
   history[win] = h
-  -- Position der bisherigen Seite merken
+  -- Remember the position of the previously displayed page
   local cur = h.list[h.pos]
   if cur and prev_line then
     cur.line = prev_line
@@ -292,11 +292,11 @@ local function push_history(win, item, prev_line)
   h.pos = #h.list
 end
 
---- Seite anzeigen
+--- Display a page
 ---@param opts table|nil { anchor, line, no_history, win }
 function M.show(page, opts)
   opts = opts or {}
-  -- Cursor der bisher angezeigten Seite (für den Verlauf)
+  -- Cursor of the previously displayed page (for the history)
   local prev_win = (opts.win and vim.api.nvim_win_is_valid(opts.win)) and opts.win or find_doc_window()
   local prev_line = prev_win and vim.b[vim.api.nvim_win_get_buf(prev_win)].qt_docs
     and vim.api.nvim_win_get_cursor(prev_win)[1] or nil
@@ -321,7 +321,7 @@ function M.show(page, opts)
   return buf, win
 end
 
---- vpath(+anchor) öffnen
+--- Open vpath(+anchor)
 function M.open(vpath, anchor, opts)
   index.get(function(data)
     M.load(data, vpath, function(page, err)
@@ -361,7 +361,7 @@ function M.history_move(delta)
   end)
 end
 
---- Markdown-Link unter (oder nächstgelegen zum) Cursor
+--- Markdown link under (or nearest to) the cursor
 function M.link_at_cursor()
   local line = vim.api.nvim_get_current_line()
   local col = vim.api.nvim_win_get_cursor(0)[2] + 1
@@ -384,7 +384,7 @@ end
 function M.follow()
   local target = M.link_at_cursor()
   if not target then
-    -- kein Link: Wort nachschlagen
+    -- no link: look up the word
     require("qt-docs").open(vim.fn.expand("<cword>"))
     return
   end
@@ -397,7 +397,7 @@ function M.follow()
     return
   end
   if target:match("^https?://") then
-    -- doc.qt.io-Links möglichst lokal öffnen
+    -- open doc.qt.io links locally when possible
     local file, anchor = target:match("^https?://doc%.qt%.io/[^/]+/([^#?]+%.html)#?(.*)$")
     local data = index.loaded()
     if file and data and data.by_basename[file] then
@@ -411,7 +411,7 @@ function M.follow()
   M.open(vpath, anchor, { win = win })
 end
 
---- Überschriften in die Location-List
+--- Headings into the location list
 function M.toc(buf)
   local items = {}
   for i, l in ipairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
@@ -421,18 +421,18 @@ function M.toc(buf)
     end
   end
   vim.fn.setloclist(0, items, "r")
-  vim.fn.setloclist(0, {}, "a", { title = "Qt-Doku: Inhalt" })
+  vim.fn.setloclist(0, {}, "a", { title = "Qt Docs: Contents" })
   vim.cmd("lopen")
 end
 
---- Abschnitt um einen Anker (für den Hover); Überladungen direkt dahinter
---- werden mit angezeigt (max. `max_overloads`)
+--- Section around an anchor (for the hover); overloads directly after it
+--- are shown as well (max. `max_overloads`)
 function M.section(page, anchor, name, max_overloads)
   local lines = page.lines
   local start = anchor_line(page, anchor, name)
   local res = {}
   if not anchor or anchor == "" then
-    -- Klassenseite: bis zur zweiten Hauptüberschrift (Titel, Kurzbeschreibung, Header-Infos)
+    -- Class page: up to the second main heading (title, short description, header info)
     for i = 1, #lines do
       if i > 1 and lines[i]:match("^## ") then
         break
@@ -443,7 +443,7 @@ function M.section(page, anchor, name, max_overloads)
   end
   local level = (lines[start] or ""):match("^(#+) ")
   level = level and #level or 6
-  -- "QString::arg(" – gleiche Funktion in den folgenden Überschriften = Überladung
+  -- "QString::arg(" – same function in the following headings = overload
   local sig = (lines[start] or ""):match("([%w_:~]+::[%w_~]+)%(")
   local overloads = 0
   max_overloads = max_overloads or 8

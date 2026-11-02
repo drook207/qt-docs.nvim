@@ -4,7 +4,7 @@ end
 vim.g.loaded_qt_docs = true
 
 if vim.fn.has("nvim-0.10") == 0 then
-  vim.notify("qt-docs.nvim benötigt Neovim >= 0.10", vim.log.levels.ERROR)
+  vim.notify("qt-docs.nvim requires Neovim >= 0.10", vim.log.levels.ERROR)
   return
 end
 
@@ -19,16 +19,16 @@ end
 
 cmd("QtDoc", function(o)
   qd().open(o.args)
-end, { nargs = "?", complete = complete, desc = "Qt-Doku zu Stichwort / Symbol unter dem Cursor" })
+end, { nargs = "?", complete = complete, desc = "Qt docs for keyword / symbol under the cursor" })
 cmd("QtDocHover", function()
   qd().hover()
-end, { desc = "Qt-Doku des Symbols im Float" })
+end, { desc = "Qt docs for the symbol in a float" })
 cmd("QtDocSearch", function(o)
   qd().search(o.args)
-end, { nargs = "?", complete = complete, desc = "Qt-Doku durchsuchen" })
+end, { nargs = "?", complete = complete, desc = "Search Qt docs" })
 cmd("QtDocBrowser", function(o)
   qd().browser(o.args)
-end, { nargs = "?", complete = complete, desc = "Qt-Doku im Browser öffnen" })
+end, { nargs = "?", complete = complete, desc = "Open Qt docs in the browser" })
 cmd("QtDocIndex", function()
   qd().reindex()
-end, { desc = "Qt-Doku-Index neu erstellen" })
+end, { desc = "Rebuild the Qt docs index" })
